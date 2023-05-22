@@ -1,9 +1,10 @@
-use clap::{Arg, ArgAction, Command};
+mod args;
+mod history;
+
+use crate::history::ChatHistory;
+use args::get_arg_matches;
 use openai_api_rust::chat::{ChatApi, ChatBody};
 use openai_api_rust::{Auth, Message, OpenAI, Role};
-use std::fs::File;
-use std::io::{BufReader, BufWriter};
-use std::path::Path;
 
 const CHAT_BODY_DEFAULTS: ChatBody = ChatBody {
     model: String::new(),
@@ -39,10 +40,12 @@ fn main() {
                 None
             };
 
-            if sync_matches.contains_id("text") {
+            if sync_matches.contains_id("message") {
                 let content = sync_matches
-                    .get_one::<String>("text")
+                    .get_one::<String>("message")
                     .expect("Must provide a message");
+
+                let model = sync_matches.get_one::<String>("model").expect("Expected gpt model").to_string();
 
                 let user_message = Message {
                     role: Role::User,
@@ -52,14 +55,15 @@ fn main() {
                 let messages = match history {
                     Some(ref mut hist) => {
                         hist.push_message(user_message);
-                        hist.messages.clone()
+                        hist.messages().clone()
                     }
                     None => vec![user_message],
                 };
 
                 let body = ChatBody {
                     messages,
-                    model: "gpt-3.5-turbo".to_string(),
+                    // gpt-4, gpt-4-0314, gpt-4-32k, gpt-4-32k-0314, gpt-3.5-turbo, gpt-3.5-turbo-0301
+                    model,
                     ..CHAT_BODY_DEFAULTS
                 };
                 let rs = openai.chat_completion_create(&body);
@@ -77,73 +81,3 @@ fn main() {
     }
 }
 
-fn get_arg_matches() -> clap::ArgMatches {
-    Command::new("chatr")
-        .about("openai chat")
-        .version("?")
-        .subcommand_required(true)
-        .arg_required_else_help(true)
-        .author("Sj")
-        .subcommand(
-            Command::new("chat")
-                .arg(Arg::new("text").action(ArgAction::Set).num_args(1))
-                .arg(
-                    Arg::new("hist")
-                        .action(ArgAction::Set)
-                        .num_args(1)
-                        .help("Path to chat history file"),
-                ),
-        )
-        .get_matches()
-}
-
-struct ChatHistory {
-    path: Box<Path>,
-    messages: Vec<Message>,
-}
-
-impl ChatHistory {
-    fn new(path: String) -> Self {
-        ChatHistory {
-            path: Path::new(&path).into(),
-            messages: Vec::new(),
-        }
-    }
-
-    fn load(&mut self) {
-        let file = match File::options().write(true).create(true).read(true).open(&self.path) {
-            Err(why) => panic!("Could not open file {}: {}", self.path.display(), why),
-            Ok(file) => file,
-        };
-        let reader = BufReader::new(file);
-        let messages: Vec<Message> = match serde_json::from_reader(reader) {
-            Err(why) => {
-                println!(
-                    "No previous messages found in {}. {}",
-                    self.path.display(),
-                    why
-                );
-                Vec::new()
-            }
-            Ok(messages) => messages,
-        };
-        self.messages = messages;
-    }
-
-    fn push_message(&mut self, message: Message) {
-        self.messages.push(message);
-    }
-
-    fn save(&mut self) {
-        let file = match File::options().write(true).open(&self.path) {
-            Err(why) => panic!("Could not open file {}: {}", self.path.display(), why),
-            Ok(file) => file,
-        };
-
-        let writer = BufWriter::new(file);
-        match serde_json::to_writer_pretty(writer, &self.messages) {
-            Err(why) => panic!("Could not write to file {}: {}", self.path.display(), why),
-            Ok(_) => (),
-        }
-    }
-}
