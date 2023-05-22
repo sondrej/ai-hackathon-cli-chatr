@@ -1,0 +1,13 @@
+[package]
+name = "cli-copilot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "4.3.0"
+openai_api_rust = "0.1.8"
+serde = { version = "1.0.163", features = ["derive"] }
+tokio = "1.28.1"
+toml = "0.7.4"
