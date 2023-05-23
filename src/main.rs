@@ -4,6 +4,8 @@ mod history;
 use crate::history::ChatHistory;
 use args::get_arg_matches;
 use openai_api_rust::chat::{ChatApi, ChatBody};
+use openai_api_rust::completions::CompletionsApi;
+use openai_api_rust::models::ModelsApi;
 use openai_api_rust::{Auth, Message, OpenAI, Role};
 
 const CHAT_BODY_DEFAULTS: ChatBody = ChatBody {
@@ -24,10 +26,23 @@ const CHAT_BODY_DEFAULTS: ChatBody = ChatBody {
 fn main() {
     let matches = get_arg_matches();
 
-    let auth = Auth::from_env().expect("Set OPENAI_API_KEY in your env");
+    let mut auth = Auth::from_env().expect("Set OPENAI_API_KEY in your env");
+    if let Ok(org) = std::env::var("OPENAI_API_ORG") {
+        auth.organization = Some(org);
+    }
     let openai = OpenAI::new(auth, "https://api.openai.com/v1/");
 
     match matches.subcommand() {
+        Some(("list-models", _)) => {
+            let rs = openai.models_list();
+            for model in rs.unwrap() {
+                println!("id: {} object: {} owned_by {}", model.id, model.object.unwrap_or("?".to_string()), model.owned_by.unwrap_or("?".to_string()));
+            }
+        },
+        // Some(("complete", sync_matches)) => {
+
+            // let rs = openai.completion_create(&body);
+        // },
         Some(("chat", sync_matches)) => {
             let mut history = if sync_matches.contains_id("hist") {
                 let path = sync_matches

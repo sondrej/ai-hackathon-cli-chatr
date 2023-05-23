@@ -1,5 +1,5 @@
 [package]
-name = "cli-copilot"
+name = "cli-chatr"
 version = "0.1.0"
 edition = "2021"
 

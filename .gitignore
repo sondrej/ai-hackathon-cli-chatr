@@ -1,2 +1,4 @@
 /target
 *.json
+set_key.sh
+set_key.ps1
