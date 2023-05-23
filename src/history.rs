@@ -59,9 +59,8 @@ impl ChatHistory {
         };
 
         let writer = BufWriter::new(file);
-        match serde_json::to_writer_pretty(writer, &self.messages) {
-            Err(why) => panic!("Could not write to file {}: {}", self.path.display(), why),
-            Ok(_) => (),
+        if let Err(why) = serde_json::to_writer_pretty(writer, &self.messages) {
+            panic!("Could not write to file {}: {}", self.path.display(), why);
         }
     }
 }
